@@ -67,8 +67,10 @@ func (u UserLoginUsecase) Login(ctx context.Context, params UserLoginUsecasePara
 		return nil, err
 	}
 
-	return &UserLoginUsecaseResponse{
-		Token:   token,
-		Payload: payload,
-	}, nil
+	res := &UserLoginUsecaseResponse{
+		Token:   token.Token,
+		Payload: token.Payload,
+	}
+
+	return res, nil
 }

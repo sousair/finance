@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 
 	"gorm.io/gorm"
 )
@@ -103,14 +102,6 @@ func (r *Repository[T]) FindById(ctx context.Context, id string, opts ...Option)
 }
 
 func (r *Repository[T]) FindBy(ctx context.Context, entity *T, opts ...Option) (*T, error) {
-	if r == nil {
-		fmt.Println("r is nil")
-	}
-
-	if r.db == nil {
-		fmt.Println("r.db is nil")
-	}
-
 	tx := r.db
 	if dbTx, err := FromContext(ctx); err == nil {
 		tx = dbTx

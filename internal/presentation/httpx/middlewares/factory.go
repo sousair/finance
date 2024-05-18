@@ -48,6 +48,6 @@ func (um UserAuthMiddleware) Execute(next echo.HandlerFunc) echo.HandlerFunc {
 		e.Set("user_email", userPayload.Email)
 		e.Set("user_name", userPayload.Name)
 
-		return nil
+		return next(e)
 	}
 }
