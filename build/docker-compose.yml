@@ -1,0 +1,31 @@
+version: '3'
+
+services:
+  finance:
+    image: finance
+    container_name: finance
+    build:
+      context: ../
+      dockerfile: ./build/Dockerfile.dev
+    ports:
+      - 42069:80
+    # depends_on:
+    volumes:
+      - ../:/app
+
+  db:
+    image: postgres:latest
+    container_name: db
+    environment:
+      POSTGRES_USER: finance
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: finance
+    ports:
+      - 5432:5432
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./volumes/postgres:/docker-entrypoint-initdb.d
+
+
+volumes:
+  db_data:
