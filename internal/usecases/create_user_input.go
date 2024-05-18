@@ -34,47 +34,63 @@ func NewCreateUserInput(
 	}
 }
 
-func (uc *CreateUserInputUsecase) Create(ctx context.Context, params CreateUserInputParams) (*entities.UserInput, error) {
-	userInput := &entities.UserInput{
-		UserID:    params.UserID,
-		AssetID:   params.AssetID,
-		Quantity:  params.Quantity,
-		PaidPrice: params.PaidPrice,
-	}
+func (uc *CreateUserInputUsecase) Create(ctx context.Context, params []CreateUserInputParams) ([]*entities.UserInput, error) {
+	var userInputs []*entities.UserInput
+	txFn := func(ctx context.Context) error {
+		for _, param := range params {
+			userInput := &entities.UserInput{
+				UserID:    param.UserID,
+				AssetID:   param.AssetID,
+				Quantity:  param.Quantity,
+				PaidPrice: param.PaidPrice,
+			}
 
-	userInput, err := uc.userInputRepo.Create(ctx, userInput)
+			userInput, err := uc.userInputRepo.Create(ctx, userInput)
 
-	if err != nil {
-		return nil, err
-	}
+			if err != nil {
+				return err
+			}
 
-	userAsset, err := uc.userAssetRepo.FindBy(ctx, &entities.UserAsset{
-		UserID:  params.UserID,
-		AssetID: params.AssetID,
-	})
+			userAsset, err := uc.userAssetRepo.FindBy(ctx, &entities.UserAsset{
+				UserID:  param.UserID,
+				AssetID: param.AssetID,
+			})
 
-	if err == database.ErrNotFound {
-		_, err := uc.addUserAssetUc.Add(ctx, AddUserAssetParams{
-			UserID:   params.UserID,
-			AssetID:  params.AssetID,
-			Quantity: params.Quantity,
-		})
+			if err == database.ErrNotFound {
+				_, err := uc.addUserAssetUc.Add(ctx, AddUserAssetParams{
+					UserID:   param.UserID,
+					AssetID:  param.AssetID,
+					Quantity: param.Quantity,
+				})
 
-		if err != nil {
-			return nil, err
+				if err != nil {
+					return err
+				}
+
+				userInputs = append(userInputs, userInput)
+				continue
+			}
+
+			if err != nil {
+				return err
+			}
+
+			userAsset.Quantity += param.Quantity
+			_, err = uc.userAssetRepo.Update(ctx, userAsset)
+
+			if err != nil {
+				return err
+			}
+
+			userInputs = append(userInputs, userInput)
 		}
+
+		return nil
 	}
 
-	if err != nil {
+	if err := uc.userInputRepo.Tx(ctx, txFn); err != nil {
 		return nil, err
 	}
 
-	userAsset.Quantity += params.Quantity
-	_, err = uc.userAssetRepo.Update(ctx, userAsset)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return userInput, nil
+	return userInputs, nil
 }
