@@ -22,7 +22,7 @@ type (
 	}
 )
 
-func NewCreateUserInput(
+func NewCreateUserInputUsecase(
 	userInputRepo *database.Repository[entities.UserInput],
 	userAssetRepo *database.Repository[entities.UserAsset],
 	addUserAssetUc *AddUserAssetUsecase,

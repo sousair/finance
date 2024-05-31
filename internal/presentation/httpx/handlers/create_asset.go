@@ -17,11 +17,11 @@ type (
 	}
 
 	CreateAssetRequest struct {
-		Type        string  `json:"type" validate:"required"`
-		Name        string  `json:"name" validate:"required"`
-		Description string  `json:"description" validate:"required"`
-		Code        string  `json:"code" validate:"required"`
-		Price       float64 `json:"price" validate:"required,gt=0"`
+		Type        entities.AssetType `json:"type" validate:"required"`
+		Name        string             `json:"name" validate:"required"`
+		Description string             `json:"description" validate:"required"`
+		Code        string             `json:"code" validate:"required"`
+		Price       float64            `json:"price" validate:"required,gt=0"`
 	}
 
 	CreateAssetResponse struct {

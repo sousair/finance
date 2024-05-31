@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/go-playground/validator"
 	_ "github.com/joho/godotenv/autoload"
@@ -11,10 +13,12 @@ import (
 	"github.com/sousair/go-finance/internal/entities"
 	"github.com/sousair/go-finance/internal/infra/cipher"
 	"github.com/sousair/go-finance/internal/infra/database"
+	"github.com/sousair/go-finance/internal/infra/financeinquiry"
 	"github.com/sousair/go-finance/internal/infra/token"
 	httpxhandlers "github.com/sousair/go-finance/internal/presentation/httpx/handlers"
 	httpxmiddleware "github.com/sousair/go-finance/internal/presentation/httpx/middlewares"
 	"github.com/sousair/go-finance/internal/usecases"
+	"github.com/sousair/go-finance/internal/workers"
 )
 
 var (
@@ -25,6 +29,7 @@ var (
 )
 
 func main() {
+	ctx := context.Background()
 	db, err := database.NewPostgres(postgresConnectionURL)
 	if err != nil {
 		panic(err)
@@ -36,6 +41,11 @@ func main() {
 	}
 
 	assetRepo, err := database.NewRepository[entities.Asset](db)
+	if err != nil {
+		panic(err)
+	}
+
+	assetPriceRepo, err := database.NewRepository[entities.AssetPrice](db)
 	if err != nil {
 		panic(err)
 	}
@@ -57,6 +67,7 @@ func main() {
 
 	cipher := cipher.NewBcrypt(bcryptCost)
 	userJwt := token.NewJWT[usecases.UserTokenPayload](userJwtSecret)
+	finance := financeinquiry.NewBrazilianFinance()
 
 	userAuthMiddleware := httpxmiddleware.NewUserAuthMiddleware(userJwt).Execute
 
@@ -64,14 +75,15 @@ func main() {
 	userLoginUc := usecases.NewUserLoginUsecase(userRepo, cipher, userJwt)
 	createAssetUc := usecases.NewCreateAssetUsecase(assetRepo)
 	addUserAssetUc := usecases.NewAddUserAssetUsecase(userAssetRepo)
-	createUserInput := usecases.NewCreateUserInput(userInputRepo, userAssetRepo, addUserAssetUc)
+	createUserInputUc := usecases.NewCreateUserInputUsecase(userInputRepo, userAssetRepo, addUserAssetUc)
+	updateStockAssetsUc := usecases.NewUpdateStockAssetsUsecase(assetRepo, assetPriceRepo, finance)
 
 	validator := validator.New()
 
 	createUserHandler := httpxhandlers.NewCreateUserHandler(validator, createUserUc)
 	userLoginHandler := httpxhandlers.NewUserLoginHandler(validator, userLoginUc)
 	createAssetHandler := httpxhandlers.NewCreateAssetHandler(validator, createAssetUc)
-	createUserInputHandler := httpxhandlers.NewCreateUserInputHandler(validator, createUserInput)
+	createUserInputHandler := httpxhandlers.NewCreateUserInputHandler(validator, createUserInputUc)
 
 	e := echo.New()
 
@@ -81,6 +93,16 @@ func main() {
 	e.POST("/users/input", createUserInputHandler.Handle, userAuthMiddleware)
 
 	e.POST("/assets", createAssetHandler.Handle, userAuthMiddleware)
+
+	cronWorker := workers.NewCronWorker()
+
+	cronWorker.Register(workers.CronJob{
+		Interval: time.Minute * 5,
+		Name:     "UpdateStockAssets",
+		Fn:       updateStockAssetsUc.UpdateStockAssets,
+	})
+
+	go cronWorker.Start(ctx)
 
 	e.Logger.Fatal(e.Start(fmt.Sprintf(": %s", port)))
 }

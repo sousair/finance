@@ -9,7 +9,8 @@ services:
       dockerfile: ./build/Dockerfile.dev
     ports:
       - 42069:80
-    # depends_on:
+    depends_on:
+      - db
     volumes:
       - ../:/app
 
@@ -25,7 +26,6 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
       - ./volumes/postgres:/docker-entrypoint-initdb.d
-
 
 volumes:
   db_data:

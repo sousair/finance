@@ -13,7 +13,7 @@ type (
 	}
 
 	CreateAssetParams struct {
-		Type        string
+		Type        entities.AssetType
 		Name        string
 		Description string
 		Code        string
@@ -27,8 +27,8 @@ func NewCreateAssetUsecase(assetRepo *database.Repository[entities.Asset]) *Crea
 
 func (uc CreateAssetUsecase) Create(ctx context.Context, params CreateAssetParams) (*entities.Asset, error) {
 	// NOTE: Maybe inquiry to google finance API to check if asset exists (STOCK, CRYPTO, FII, etc)
+
 	// TODO: Get asset price here if stock price is searchable
-	// NOTE: If use a AssetType table, validate here
 	asset := &entities.Asset{
 		Type:        params.Type,
 		Name:        params.Name,
